@@ -1,7 +1,7 @@
 from database import SessionLocal
 from models.users import User
-from models.teacher import Teacher, AvailabilitySlot
-from models.student import Student
+import models.teacher
+import models.student
 from models.language import Language, LevelPricing, LevelHours
 import uuid
 import bcrypt
@@ -71,7 +71,7 @@ def seed():
     db.add(teacher_user)
     db.commit()
 
-    teacher = Teacher(
+    teacher = models.teacher.Teacher(
         id=uuid.uuid4(),
         user_id=teacher_user.id,
         language_id=8,  # Turqisht
@@ -100,7 +100,7 @@ def seed():
     db.add(student_user)
     db.commit()
 
-    student = Student(
+    student = models.student.Student(
         id=uuid.uuid4(),
         user_id=student_user.id,
         current_level="A1",

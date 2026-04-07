@@ -15,11 +15,9 @@ class Session(Base):
     course_payment_id      = Column(UUID(as_uuid=True), ForeignKey("course_payments.id"), nullable=False)
     language_id            = Column(Integer, ForeignKey("languages.id"), nullable=False)
     level                  = Column(String(3), nullable=False)
-    scheduled_at           = Column(TIMESTAMP(timezone=True), nullable=False)  # stored UTC
+    scheduled_at           = Column(TIMESTAMP(timezone=True), nullable=False)
     duration_minutes       = Column(Integer, nullable=False, default=60)
-    # A1-B2 = 60 minutes, C1-C2 = 90 minutes
     status                 = Column(String(20), nullable=False, default="pending")
-    # pending, confirmed, completed, cancelled, no_show
     videocall_url          = Column(Text)
     rescheduled            = Column(Boolean, default=False)
     teacher_review_done    = Column(Boolean, default=False)
@@ -40,13 +38,11 @@ class Session(Base):
 
 class RescheduleRequest(Base):
     __tablename__ = "reschedule_requests"
-
     id           = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     session_id   = Column(UUID(as_uuid=True), ForeignKey("sessions.id", ondelete="CASCADE"), nullable=False)
     requested_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     new_time     = Column(TIMESTAMP(timezone=True), nullable=False)
     status       = Column(String(20), nullable=False, default="pending")
-    # pending, accepted, rejected
     reason       = Column(Text)
     created_at   = Column(TIMESTAMP(timezone=True), server_default=func.now())
     resolved_at  = Column(TIMESTAMP(timezone=True))

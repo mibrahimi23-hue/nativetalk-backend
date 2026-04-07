@@ -29,5 +29,4 @@ class LevelHours(Base):
 
     level     = Column(String(3), primary_key=True)
     hours_min = Column(Integer, nullable=False, default=30)
-    hours_max = Column(Integer, nullable=False, default=50)
-    
+    hours_max = Column(Integer, nullable=False, default=50)    

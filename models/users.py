@@ -20,7 +20,6 @@ class User(Base):
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
     updated_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
 
-    #RELATIONSHIPS
     teacher = relationship("Teacher", back_populates="user", uselist=False)
     student = relationship("Student", back_populates="user", uselist=False)
     suspensions = relationship("Suspension", back_populates="user")

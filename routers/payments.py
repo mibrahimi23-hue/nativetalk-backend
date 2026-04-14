@@ -6,9 +6,16 @@ from models.payment import CoursePayment, Payment
 from models.student import Student
 from models.teacher import Teacher
 from models.suspension import Suspension
+from utils.payment_plan import calculate_payment_schedule
+from pydantic import BaseModel
+import uuid
 
 router = APIRouter()
 
+VALID_PLANS = {"hour_by_hour", "50_50", "80_20"}
+
+class SetPaymentPlanRequest(BaseModel):
+    payment_plan: str
 
 @router.get("/course/{course_payment_id}")
 def get_course_payment(
@@ -171,4 +178,56 @@ def get_session_payment(
         "teacher_payout": float(payment.teacher_payout),
         "status":         payment.status,
         "paid_at":        str(payment.paid_at)
+    }
+@router.patch("/course/{course_payment_id}/set-plan")
+def set_payment_plan(
+    course_payment_id: str,
+    body: SetPaymentPlanRequest,
+    db: DBSession = Depends(get_db)
+):
+    if body.payment_plan not in VALID_PLANS:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid plan. Choose from: hour_by_hour, 50_50, 80_20"
+        )
+
+    cp = db.query(CoursePayment).filter(CoursePayment.id == course_payment_id).first()
+    if not cp:
+        raise HTTPException(status_code=404, detail="Course payment not found!")
+
+    if cp.status != "active":
+        raise HTTPException(status_code=400, detail="Cannot change plan on a non-active course.")
+
+    cp.payment_plan = body.payment_plan
+    db.commit()
+    db.refresh(cp)
+
+    schedule = calculate_payment_schedule(cp.total_amount, cp.payment_plan, cp.total_hours)
+    return {
+        "message":          "Payment plan updated!",
+        "course_payment_id": str(cp.id),
+        "payment_plan":     cp.payment_plan,
+        "schedule":         schedule
+    }
+
+
+@router.get("/course/{course_payment_id}/schedule")
+def get_payment_schedule(
+    course_payment_id: str,
+    db: DBSession = Depends(get_db)
+):
+    cp = db.query(CoursePayment).filter(CoursePayment.id == course_payment_id).first()
+    if not cp:
+        raise HTTPException(status_code=404, detail="Course payment not found!")
+
+    schedule = calculate_payment_schedule(cp.total_amount, cp.payment_plan, cp.total_hours)
+    return {
+        "course_payment_id":  str(cp.id),
+        "student_id":         str(cp.student_id),
+        "teacher_id":         str(cp.teacher_id),
+        "total_amount":       float(cp.total_amount),
+        "payment_plan":       cp.payment_plan,
+        "installment_1_paid": cp.installment_1_paid,
+        "installment_2_paid": cp.installment_2_paid,
+        "schedule":           schedule
     }

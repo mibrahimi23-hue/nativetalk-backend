@@ -15,6 +15,8 @@ import uuid
 
 router = APIRouter()
 
+LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"]
+
 
 class BookingCreate(BaseModel):
     teacher_id:       str
@@ -27,18 +29,101 @@ class BookingCreate(BaseModel):
     price_per_hour:   float
 
 
-def check_suspended(user_id: str, db: DBSession):
-    suspension = db.query(Suspension).filter(
-        and_(
-            Suspension.user_id == user_id,
-            Suspension.is_active == True
-        )
-    ).first()
-    if suspension:
-        raise HTTPException(
-            status_code=403,
-            detail=f"Account is suspended!Reason: {suspension.reason}"
-        )
+class BookingValidator:
+    def __init__(self, db: DBSession):
+        self.db = db
+
+    def check_suspended(self, user_id: str):
+        suspension = self.db.query(Suspension).filter(
+            and_(
+                Suspension.user_id == user_id,
+                Suspension.is_active == True
+            )
+        ).first()
+        if suspension:
+            raise HTTPException(
+                status_code=403,
+                detail=f"Account is suspended! Reason: {suspension.reason}"
+            )
+
+    def check_pending_reviews(self, student_id: str):
+        """Block booking if student has completed sessions without a review."""
+        pending = self.db.query(BookingSession).filter(
+            and_(
+                BookingSession.student_id == student_id,
+                BookingSession.status == "completed",
+                BookingSession.student_review_done == False
+            )
+        ).first()
+        if pending:
+            raise HTTPException(
+                status_code=400,
+                detail=f"You have an unfinished review for session {str(pending.id)}. Please write your review before booking a new session!"
+            )
+
+    def check_teacher_level(self, level: str, teacher: Teacher):
+        if LEVELS.index(level) > LEVELS.index(teacher.max_level):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Teacher maximum level is {teacher.max_level}!"
+            )
+
+    def check_teacher_language(self, language_id: int, teacher: Teacher):
+        if teacher.language_id != language_id:
+            raise HTTPException(
+                status_code=400,
+                detail="Teacher does not teach this language!"
+            )
+
+    def check_time_conflict(self, teacher_id: str, scheduled_utc):
+        conflict = self.db.query(BookingSession).filter(
+            and_(
+                BookingSession.teacher_id == teacher_id,
+                BookingSession.status.in_(["pending", "confirmed"]),
+                BookingSession.scheduled_at == scheduled_utc
+            )
+        ).first()
+        if conflict:
+            raise HTTPException(
+                status_code=400,
+                detail="Teacher already has a session at this time!"
+            )
+
+    def check_price(self, level: str, price_per_hour: float):
+        pricing = self.db.query(LevelPricing).filter_by(level=level).first()
+        if not pricing:
+            raise HTTPException(status_code=400, detail="Price not found!")
+        if not (float(pricing.price_min) <= price_per_hour <= float(pricing.price_max)):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Price must be between {pricing.price_min}-{pricing.price_max} EUR/hour!"
+            )
+
+    def check_hours(self, level: str, total_hours: int):
+        hours_limit = self.db.query(LevelHours).filter_by(level=level).first()
+        if not hours_limit:
+            raise HTTPException(status_code=400, detail="Hours not found!")
+        if not (hours_limit.hours_min <= total_hours <= hours_limit.hours_max):
+            raise HTTPException(
+                status_code=400,
+                detail=f"Hours must be between {hours_limit.hours_min}-{hours_limit.hours_max}!"
+            )
+
+    def run_all(
+        self,
+        data: BookingCreate,
+        teacher: Teacher,
+        student: Student,
+        scheduled_utc
+    ):
+        self.check_suspended(str(teacher.user_id))
+        self.check_suspended(str(student.user_id))
+        self.check_pending_reviews(str(student.id))
+        self.check_teacher_level(data.level, teacher)
+        self.check_teacher_language(data.language_id, teacher)
+        self.check_time_conflict(str(data.teacher_id), scheduled_utc)
+        self.check_price(data.level, data.price_per_hour)
+        self.check_hours(data.level, data.total_hours)
 
 
 def get_duration(level: str) -> int:
@@ -55,8 +140,7 @@ def create_booking(
     if not is_valid_timezone(data.student_timezone):
         raise HTTPException(status_code=400, detail="Timezone is not correct!")
 
-    valid_levels = ["A1", "A2", "B1", "B2", "C1", "C2"]
-    if data.level not in valid_levels:
+    if data.level not in LEVELS:
         raise HTTPException(status_code=400, detail="Invalid Level!")
 
     teacher = db.query(Teacher).filter(Teacher.id == data.teacher_id).first()
@@ -67,56 +151,10 @@ def create_booking(
     if not student:
         raise HTTPException(status_code=404, detail="Student not found!")
 
-    check_suspended(str(teacher.user_id), db)
-    check_suspended(str(student.user_id), db)
-
-    if data.level > teacher.max_level:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Teacher maximum level is {teacher.max_level}!"
-        )
-
-    if teacher.language_id != data.language_id:
-        raise HTTPException(
-            status_code=400,
-            detail="Teacher does not teach this language!"
-        )
-
     scheduled_utc = to_utc(data.scheduled_at, data.student_timezone)
 
-    conflict = db.query(BookingSession).filter(
-        and_(
-            BookingSession.teacher_id == data.teacher_id,
-            BookingSession.status.in_(["pending", "confirmed"]),
-            BookingSession.scheduled_at == scheduled_utc
-        )
-    ).first()
-
-    if conflict:
-        raise HTTPException(
-            status_code=400,
-            detail="Teacher already has a session at this time!"
-        )
-
-    pricing = db.query(LevelPricing).filter_by(level=data.level).first()
-    if not pricing:
-        raise HTTPException(status_code=400, detail="Price not found!")
-
-    if not (float(pricing.price_min) <= data.price_per_hour <= float(pricing.price_max)):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Price must be between {pricing.price_min}-{pricing.price_max} EUR/hour!"
-        )
-
-    hours_limit = db.query(LevelHours).filter_by(level=data.level).first()
-    if not hours_limit:
-        raise HTTPException(status_code=400, detail="Hours not found!")
-
-    if not (hours_limit.hours_min <= data.total_hours <= hours_limit.hours_max):
-        raise HTTPException(
-            status_code=400,
-            detail=f"Hours must be between {hours_limit.hours_min}-{hours_limit.hours_max}!"
-        )
+    validator = BookingValidator(db)
+    validator.run_all(data, teacher, student, scheduled_utc)
 
     total_amount   = round(data.total_hours * data.price_per_hour, 2)
     platform_fee   = round(total_amount * 0.10, 2)
@@ -163,7 +201,7 @@ def create_booking(
     db.refresh(session)
 
     return {
-        "message": "Resevation created successfully!",
+        "message": "Reservation created successfully!",
         "booking": {
             "session_id":        str(session.id),
             "course_payment_id": str(course_payment.id),
@@ -221,7 +259,7 @@ def get_teacher_bookings(
 ):
     teacher = db.query(Teacher).filter(Teacher.id == teacher_id).first()
     if not teacher:
-        raise HTTPException(status_code=404, detail="Teacher not found !")
+        raise HTTPException(status_code=404, detail="Teacher not found!")
 
     sessions = db.query(BookingSession).filter(
         BookingSession.teacher_id == teacher_id

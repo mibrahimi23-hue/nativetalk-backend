@@ -23,6 +23,10 @@ class CoursePayment(Base):
     status         = Column(String(20), default="active")
     created_at     = Column(TIMESTAMP(timezone=True), server_default=func.now())
 
+    payment_plan       = Column(String(20), default="hour_by_hour")
+    installment_1_paid = Column(Boolean, default=False)
+    installment_2_paid = Column(Boolean, default=False)
+    
     student  = relationship("Student", back_populates="course_payments")
     teacher  = relationship("Teacher", back_populates="course_payments")
     language = relationship("Language", back_populates="course_payments")

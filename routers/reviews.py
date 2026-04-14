@@ -100,7 +100,7 @@ def check_negative_reviews_and_flag(user_id: str, role: str, db: DBSession):
                     id=uuid.uuid4(),
                     flagged_user=user_id,
                     flagged_by=user_id,
-                    reason=f"Auto-flagged: rating mesatar {avg:.1f}/5 (below) 2.0)",
+                    reason=f"Auto-flagged: rating mesatar {avg:.1f}/5 (below 2.0)",
                     status="pending"
                 )
                 db.add(flag)

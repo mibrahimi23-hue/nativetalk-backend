@@ -174,7 +174,7 @@ def update_availability(
     db: Session = Depends(get_db)
 ):
     if not is_valid_timezone(data.timezone):
-        raise HTTPException(status_code=400, detail="Timezone e pavlefshme!")
+        raise HTTPException(status_code=400, detail="Timezone is not correct!")
 
     slot = db.query(AvailabilitySlot).filter(
         and_(

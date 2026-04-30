@@ -50,7 +50,7 @@ def check_and_suspend(student: Student, session: BookingSession, db: DBSession):
 
         raise HTTPException(
             status_code=403,
-            detail="You have been suspended!Reason:You have exceeded the 5 reschedule.No refund!"
+            detail="You have been suspended! Reason:You have exceeded the 5 reschedule.No refund!"
         )
 
 

@@ -7,6 +7,9 @@ from models.payment import CoursePayment, Payment
 from models.review import Review
 from models.language import Language, LevelPricing, LevelHours
 from models.suspension import Suspension
+from models.certificate import TeacherCertificate  # ← ADD
+from models.material import LessonMaterial          # ← ADD
+from models.exam import Exam, ExamQuestion, ExamAttempt, ExamAnswer  # ← ADD if missing
 from datetime import time, datetime, timezone, timedelta
 import uuid
 import bcrypt

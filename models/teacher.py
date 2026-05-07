@@ -33,6 +33,8 @@ class Teacher(Base):
     course_payments     = relationship("CoursePayment", back_populates="teacher")
     exams_created_by_me = relationship("Exam", back_populates="creator", foreign_keys="Exam.created_by")
     exam_attempts       = relationship("ExamAttempt", back_populates="teacher")
+    certificates        = relationship("TeacherCertificate", back_populates="teacher")
+    materials    = relationship("LessonMaterial", back_populates="teacher")
 
 
 class TeacherVerification(Base):

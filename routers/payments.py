@@ -14,8 +14,10 @@ router = APIRouter()
 
 VALID_PLANS = {"hour_by_hour", "50_50", "80_20"}
 
+
 class SetPaymentPlanRequest(BaseModel):
     payment_plan: str
+
 
 @router.get("/course/{course_payment_id}")
 def get_course_payment(
@@ -93,10 +95,10 @@ def get_student_payments(
     ).first()
 
     return {
-        "student_id":     student_id,
-        "total_spent":    round(total_spent, 2),
-        "courses":        len(course_payments),
-        "is_suspended":   suspension is not None,
+        "student_id":        student_id,
+        "total_spent":       round(total_spent, 2),
+        "courses":           len(course_payments),
+        "is_suspended":      suspension is not None,
         "suspension_reason": suspension.reason if suspension else None,
         "course_payments": [
             {
@@ -179,6 +181,8 @@ def get_session_payment(
         "status":         payment.status,
         "paid_at":        str(payment.paid_at)
     }
+
+
 @router.patch("/course/{course_payment_id}/set-plan")
 def set_payment_plan(
     course_payment_id: str,
@@ -204,10 +208,10 @@ def set_payment_plan(
 
     schedule = calculate_payment_schedule(cp.total_amount, cp.payment_plan, cp.total_hours)
     return {
-        "message":          "Payment plan updated!",
+        "message":           "Payment plan updated!",
         "course_payment_id": str(cp.id),
-        "payment_plan":     cp.payment_plan,
-        "schedule":         schedule
+        "payment_plan":      cp.payment_plan,
+        "schedule":          schedule
     }
 
 
@@ -230,4 +234,80 @@ def get_payment_schedule(
         "installment_1_paid": cp.installment_1_paid,
         "installment_2_paid": cp.installment_2_paid,
         "schedule":           schedule
+    }
+
+
+@router.get("/course/{course_payment_id}/checkout")
+def get_checkout_summary(
+    course_payment_id: str,
+    db: DBSession = Depends(get_db)
+):
+    cp = db.query(CoursePayment).filter(
+        CoursePayment.id == course_payment_id
+    ).first()
+    if not cp:
+        raise HTTPException(status_code=404, detail="Course payment not found!")
+
+    schedule = calculate_payment_schedule(
+        cp.total_amount,
+        cp.payment_plan,
+        cp.total_hours
+    )
+
+    return {
+        "course_payment_id": str(cp.id),
+        "student_id":        str(cp.student_id),
+        "teacher_id":        str(cp.teacher_id),
+        "level":             cp.level,
+        "total_hours":       cp.total_hours,
+        "total_amount":      float(cp.total_amount),
+        "payment_plan":      cp.payment_plan,
+        "first_payment_due": schedule["upfront_amount"],
+        "schedule":          schedule,
+        "status":            cp.status
+    }
+
+
+@router.post("/course/{course_payment_id}/confirm")
+def confirm_payment(
+    course_payment_id: str,
+    db: DBSession = Depends(get_db)
+):
+    cp = db.query(CoursePayment).filter(
+        CoursePayment.id == course_payment_id
+    ).first()
+    if not cp:
+        raise HTTPException(status_code=404, detail="Course payment not found!")
+
+    if cp.status != "active":
+        raise HTTPException(
+            status_code=400,
+            detail="This course payment is not active!"
+        )
+
+    if cp.installment_1_paid:
+        raise HTTPException(
+            status_code=400,
+            detail="First payment already confirmed!"
+        )
+
+    cp.installment_1_paid = True
+
+    if cp.payment_plan in ["50_50", "80_20"]:
+        schedule       = calculate_payment_schedule(
+            cp.total_amount, cp.payment_plan, cp.total_hours
+        )
+        upfront        = schedule["upfront_amount"]
+        cp.amount_paid = float(cp.amount_paid) + upfront
+        cp.amount_left = float(cp.amount_left) - upfront
+
+    db.commit()
+
+    return {
+        "message":            "Payment confirmed!",
+        "course_payment_id":  str(cp.id),
+        "payment_plan":       cp.payment_plan,
+        "installment_1_paid": cp.installment_1_paid,
+        "amount_paid":        float(cp.amount_paid),
+        "amount_left":        float(cp.amount_left)
     }

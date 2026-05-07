@@ -17,7 +17,11 @@ from routers import (
     admin,        
     profile,      
     progress, 
-    videocall    
+    videocall,
+    certificates,
+    materials,
+    paypal,
+    chat
 )
 from utils.auto_release import auto_release_overdue_payments
 from contextlib import asynccontextmanager
@@ -77,6 +81,11 @@ app.include_router(admin.router,         prefix="/admin",         tags=["Admin"]
 app.include_router(profile.router,       prefix="/profile",       tags=["Profile"])     
 app.include_router(progress.router,      prefix="/progress",      tags=["Progress"])  
 app.include_router(videocall.router,    prefix="/videocall",    tags=["Video Call"])
+app.include_router(certificates.router, prefix="/certificates",  tags=["Certificates"])
+app.include_router(materials.router,    prefix="/materials",     tags=["Materials"])
+app.include_router(paypal.router,       prefix="/paypal",        tags=["PayPal"])
+app.include_router(chat.router,         prefix="/chat",          tags=["Chat"])
+
 
 
 @app.get("/")

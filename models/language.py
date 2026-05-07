@@ -15,6 +15,7 @@ class Language(Base):
     students = relationship("StudentLanguage", back_populates="language")
     sessions        = relationship("Session", back_populates="language")
     exams = relationship("Exam", back_populates="language")
+    materials  = relationship("LessonMaterial", back_populates="language")
 
 
 class LevelPricing(Base):

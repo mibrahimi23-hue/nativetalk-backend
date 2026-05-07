@@ -22,16 +22,16 @@ class CoursePayment(Base):
     no_refund      = Column(Boolean, default=False)
     status         = Column(String(20), default="active")
     created_at     = Column(TIMESTAMP(timezone=True), server_default=func.now())
-
     payment_plan       = Column(String(20), default="hour_by_hour")
     installment_1_paid = Column(Boolean, default=False)
     installment_2_paid = Column(Boolean, default=False)
-    
-    student  = relationship("Student", back_populates="course_payments")
-    teacher  = relationship("Teacher", back_populates="course_payments")
-    language = relationship("Language", back_populates="course_payments")
-    sessions = relationship("Session", back_populates="course_payment")
-    payments = relationship("Payment", back_populates="course_payment")
+
+    student              = relationship("Student", back_populates="course_payments")
+    teacher              = relationship("Teacher", back_populates="course_payments")
+    language             = relationship("Language", back_populates="course_payments")
+    sessions             = relationship("Session", back_populates="course_payment")
+    payments             = relationship("Payment", back_populates="course_payment")
+    paypal_transactions  = relationship("PayPalTransaction", back_populates="course_payment")  # ← ADD
 
 
 class Payment(Base):
@@ -50,3 +50,21 @@ class Payment(Base):
 
     session        = relationship("Session", back_populates="payment")
     course_payment = relationship("CoursePayment", back_populates="payments")
+
+
+class PayPalTransaction(Base):                                                    # ← ADD
+    __tablename__ = "paypal_transactions"
+
+    id                = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    course_payment_id = Column(UUID(as_uuid=True), ForeignKey("course_payments.id"), nullable=False)
+    student_id        = Column(UUID(as_uuid=True), ForeignKey("students.id"), nullable=False)
+    paypal_order_id   = Column(String(100), nullable=False)
+    paypal_status     = Column(String(50), nullable=False, default="pending")
+    amount            = Column(DECIMAL(8, 2), nullable=False)
+    currency          = Column(String(10), default="EUR")
+    installment       = Column(Integer, default=1)
+    created_at        = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    completed_at      = Column(TIMESTAMP(timezone=True))
+
+    course_payment = relationship("CoursePayment", back_populates="paypal_transactions")
+    student        = relationship("Student", back_populates="paypal_transactions")

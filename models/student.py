@@ -22,6 +22,7 @@ class Student(Base):
     suspensions     = relationship("Suspension", back_populates="student")
     course_payments = relationship("CoursePayment", back_populates="student")
     languages       = relationship("StudentLanguage", back_populates="student")
+    paypal_transactions = relationship("PayPalTransaction", back_populates="student") 
 
 
 class StudentLanguage(Base):

@@ -1,196 +1,224 @@
 # NativeTalk
 
-Language tutoring platform — FastAPI backend + Expo (React Native) frontend.
+A language tutoring platform that connects students with native-speaking tutors. Students browse tutors by language and level, book sessions, and pay through an integrated payment flow. Tutors manage their availability, upload certificates, and track earnings.
 
 ---
 
-## Prerequisites
+## Stack
 
-| Tool | Minimum version | Install |
-|------|----------------|---------|
-| Python | 3.11+ | https://www.python.org/downloads/ |
-| Node.js | 18+ | https://nodejs.org/ |
-| npm | 9+ | bundled with Node.js |
-| Docker Desktop | latest | https://www.docker.com/products/docker-desktop/ |
-| Expo Go (phone) | latest | App Store / Play Store |
-
----
-
-## 1 — Backend (FastAPI + PostgreSQL)
-
-The backend runs inside Docker. Open a terminal in the project root.
-
-### Option A — Docker (recommended)
-
-```bash
-# 1. Navigate to the Backend folder
-cd Backend
-
-# 2. Copy the environment file and fill in your secrets
-copy .env.example .env
-#    Open .env and set:
-#      JWT_SECRET_KEY=<any long random string>
-#      DAILY_API_KEY=<your Daily.co API key>
-#      DATABASE_URL=postgresql://postgres:postgres@db:5432/myproject
-
-# 3. Build and start (first run may take a few minutes)
-docker compose up --build
-
-# 4. In a second terminal, run database migrations
-docker compose exec api alembic upgrade head
-```
-
-The API will be live at **http://localhost:8000**  
-Interactive docs (Swagger): **http://localhost:8000/docs**
-
-To stop the backend:
-```bash
-docker compose down
-```
-
----
-
-### Option B — Local Python (no Docker)
-
-Requires PostgreSQL running locally on port 5432.
-
-```bash
-# 1. Navigate to the Backend folder
-cd Backend
-
-# 2. Create and activate a virtual environment
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # macOS / Linux
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Copy and configure the environment file
-copy .env.example .env
-#    Open .env and set DATABASE_URL, JWT_SECRET_KEY, DAILY_API_KEY
-
-# 5. Run database migrations
-alembic upgrade head
-
-# 6. Start the development server
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
----
-
-## 2 — Frontend (Expo / React Native)
-
-Open a **new terminal** (keep the backend terminal running).
-
-```bash
-# 1. Navigate to the Frontend folder
-cd Frontend
-
-# 2. Install dependencies (only needed once)
-npm install
-
-# 3. Start the Expo dev server
-npx expo start
-```
-
-After the dev server starts you will see a QR code in the terminal.
-
-| Target | How to open |
-|--------|-------------|
-| Physical phone | Scan the QR code with **Expo Go** |
-| Android emulator | Press `a` in the terminal (requires Android Studio) |
-| iOS simulator | Press `i` in the terminal (macOS + Xcode only) |
-| Web browser | Press `w` in the terminal |
-
-> **Important:** The app connects to `http://localhost:8000` by default.  
-> If running on a physical device, open `Frontend/services/api-client.js` and replace  
-> `localhost` with your computer's local IP address (e.g. `192.168.1.10`).
-
----
-
-## 3 — Running Both Together (quick reference)
-
-Open **two terminals** side by side:
-
-**Terminal 1 — Backend**
-```bash
-cd Backend
-docker compose up
-```
-
-**Terminal 2 — Frontend**
-```bash
-cd Frontend
-npm install
-npx expo start
-```
-
----
-
-## Environment Variables (Backend)
-
-| Variable | Description | Example |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://postgres:postgres@db:5432/myproject` |
-| `JWT_SECRET_KEY` | Secret used to sign JWT tokens | any long random string |
-| `DAILY_API_KEY` | Daily.co API key for video calls | `abc123...` |
-| `DAILY_DOMAIN` | Your Daily.co domain | `yourapp.daily.co` |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID | from Google Cloud Console |
+| Layer | Technology |
+|---|---|
+| Backend | Python · FastAPI · SQLAlchemy 2 · PostgreSQL (Supabase) |
+| Frontend | React Native · Expo SDK 54 · Expo Router (file-based) |
+| Auth | JWT (access + refresh rotation) · bcrypt |
+| Video | Daily.co (WebView embed) |
+| Payments | PayPal |
+| Storage | Supabase PostgreSQL · local `uploads/` for files |
 
 ---
 
 ## Project Structure
 
 ```
-nativetalk-backend-main/
-├── Backend/             # FastAPI app, Alembic migrations, Docker config
-│   ├── app/             # Routes, models, services, schemas
-│   ├── alembic/         # Database migrations
+nativetalk-backend/
+├── Backend/                  # FastAPI application
+│   ├── app/
+│   │   ├── main.py           # App entry point, router registration
+│   │   ├── api/              # Route handlers (availability, booking, search …)
+│   │   ├── api/v1/           # Versioned endpoints (auth, users, tutors, sessions …)
+│   │   ├── models/           # SQLAlchemy ORM models
+│   │   ├── schemas/          # Pydantic request/response schemas
+│   │   ├── services/         # Business logic (payments, timezone, Daily.co …)
+│   │   ├── core/             # Config, logging, security helpers
+│   │   └── db/               # Session factory, base class
+│   ├── alembic/              # Database migrations
+│   ├── tests/                # Pytest test suite
+│   ├── requirements.txt
 │   ├── Dockerfile
 │   ├── docker-compose.yml
-│   └── requirements.txt
-└── Frontend/            # Expo React Native app
-    ├── app/             # Screens (file-based routing via expo-router)
-    ├── components/      # Shared UI components
-    ├── constants/       # Theme colors, fonts, spacing
-    ├── contexts/        # React context providers
-    ├── hooks/           # Custom hooks
-    └── services/        # API client and service helpers
+│   └── .env.example          # Required environment variables
+│
+└── Frontend/                 # Expo / React Native application
+    ├── app/
+    │   ├── index.tsx          # Entry — role-based redirect
+    │   ├── welcome.tsx
+    │   ├── login.tsx
+    │   ├── register.tsx
+    │   ├── student/           # Student screens + layout + nav
+    │   ├── tutor/             # Tutor screens + layout + nav
+    │   └── admin/             # Admin screens + layout + nav
+    ├── services/
+    │   ├── api.ts             # All API calls, organised by domain
+    │   ├── client.ts          # Fetch wrapper, JWT injection, token refresh
+    │   └── storage.ts         # SecureStore (native) / localStorage (web)
+    ├── contexts/
+    │   └── AuthContext.tsx    # Global auth state, login/logout/refresh
+    └── constants/
+        └── theme.ts           # Design tokens (colours, fonts)
 ```
 
 ---
 
-## Useful Commands
+## Features
+
+### Student
+- Browse and search tutors by language and CEFR level
+- View tutor profiles (bio, rating, availability, certificates)
+- Book lessons with a 3-step flow: time slot → level & hours → payment plan
+- Pay per lesson, 50/50, or 80/20 upfront plans via PayPal
+- Join video sessions (Daily.co)
+- Leave reviews after sessions
+- Chat directly with tutors
+- Track lessons, transactions, and learning materials
+
+### Tutor
+- Onboarding flow: language selection → proficiency exam → verification wait
+- Manage weekly availability slots
+- View and confirm booked sessions
+- Upload certificates and study materials
+- Real-time earnings dashboard
+- Chat with students
+- Join video sessions and mark completion / no-show
+
+### Admin
+- Dashboard with platform stats (users, revenue, pending approvals, flags)
+- Approve or reject tutor verification applications
+- Suspend / unsuspend tutors and students
+- Resolve flagged reviews
+- Browse all transactions
+- Build and publish language proficiency exams
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.11+
+- Node.js 18+
+- A PostgreSQL database (the project uses Supabase)
+
+---
 
 ### Backend
+
 ```bash
-# View live logs
-docker compose logs -f api
+cd Backend
 
-# Open a shell inside the API container
-docker compose exec api bash
+# Create and activate virtual environment
+python -m venv .venv
+.venv\Scripts\activate        # Windows
+source .venv/bin/activate     # macOS / Linux
 
-# Create a new migration after model changes
-docker compose exec api alembic revision --autogenerate -m "describe change"
+# Install dependencies
+pip install -r requirements.txt
 
-# Apply migrations
-docker compose exec api alembic upgrade head
+# Copy and fill in environment variables
+cp .env.example .env
+# Edit .env with your DATABASE_URL, JWT_SECRET_KEY, DAILY_API_KEY, etc.
 
-# Reset the database (destructive — deletes all data)
-docker compose down -v
-docker compose up --build
-docker compose exec api alembic upgrade head
+# Start the server
+uvicorn app.main:app --reload --port 8000
 ```
+
+API docs available at `http://localhost:8000/docs`
+
+---
 
 ### Frontend
+
 ```bash
-# Clear Expo cache and restart
-npx expo start --clear
+cd Frontend
 
-# Build for Android (EAS)
-npx eas build --platform android
+# Install dependencies
+npm install
 
-# Build for iOS (EAS)
-npx eas build --platform ios
+# Copy and fill in environment variables
+cp .env.local.example .env.local
+# Set EXPO_PUBLIC_API_BASE_URL to your backend IP (for mobile)
+# Web always uses http://localhost:8000 automatically
+
+# Start Expo
+npx expo start --web --port 8084
 ```
+
+App runs at `http://localhost:8084`
+
+---
+
+### Environment Variables
+
+**Backend — `Backend/.env`**
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | PostgreSQL connection string |
+| `JWT_SECRET_KEY` | 32+ byte random secret for signing tokens |
+| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | Access token lifetime (default: 15) |
+| `JWT_REFRESH_TOKEN_EXPIRE_DAYS` | Refresh token lifetime (default: 30) |
+| `DAILY_API_KEY` | Daily.co API key for video rooms |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID (optional) |
+| `CORS_ORIGINS` | Comma-separated allowed origins |
+
+**Frontend — `Frontend/.env.local`**
+
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_API_BASE_URL` | Backend URL for mobile (e.g. `http://192.168.1.x:8000`) |
+
+---
+
+## API Overview
+
+| Prefix | Description |
+|---|---|
+| `/api/v1/auth` | Register, login, refresh, logout |
+| `/api/v1/users` | Profile, photo upload |
+| `/api/v1/tutors` | Browse tutors, availability, profile update |
+| `/api/v1/sessions` | Book, confirm, complete, cancel sessions |
+| `/api/v1/reviews` | Create and flag reviews |
+| `/api/v1/admin` | Admin actions (suspend, unsuspend, user list) |
+| `/search` | Languages, levels, teacher search |
+| `/booking` | Course booking |
+| `/availability` | Tutor availability CRUD |
+| `/paypal` | Payment orders and history |
+| `/chat` | Messaging between users |
+| `/exams` | Proficiency exam builder and submission |
+| `/certificates` | Tutor certificate upload and verification |
+| `/materials` | Study material upload and access |
+| `/progress` | Student learning progress |
+| `/verifications` | Tutor verification workflow |
+| `/videocall` | Daily.co room URL generation |
+
+---
+
+## Roles & Auth Flow
+
+```
+Register / Login
+      │
+      ▼
+  JWT issued (access 15 min + refresh 30 days)
+      │
+      ├── role: student  →  /student/*
+      ├── role: teacher  →  /tutor/*
+      └── role: admin    →  /admin/*
+```
+
+- Access tokens are injected automatically by `client.ts`
+- On 401, the client silently refreshes and retries the request once
+- On logout, tokens are revoked server-side and cleared from storage
+
+---
+
+## Test Accounts
+
+| Email | Password | Role |
+|---|---|---|
+| admin@example.com | admin1234 | Admin |
+| testtutor1@test.com | Test1234 | Tutor (English · C2 · €15/hr) |
+| testtutor2@test.com | Test1234 | Tutor (Spanish · B2 · €20/hr) |
+| testtutor3@test.com | Test1234 | Tutor (French · C1 · €25/hr) |
+| teststudent1@test.com | Test1234 | Student |
+| teststudent2@test.com | Test1234 | Student |
+| teststudent3@test.com | Test1234 | Student |

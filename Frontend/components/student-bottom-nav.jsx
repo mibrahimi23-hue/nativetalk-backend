@@ -1,42 +1,35 @@
 import { Ionicons } from "@expo/vector-icons";
-import { usePathname, useRouter } from "expo-router";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { C, F } from "@/constants/theme";
+import { router, usePathname } from "expo-router";
+import { StyleSheet, TouchableOpacity, View } from "react-native";
 
-const TABS = [
-  { label: "Home",     icon: "home",           route: "/student-dashboard" },
-  { label: "Lessons",  icon: "book",           route: "/student-lessons" },
-  { label: "Messages", icon: "chatbubbles",    route: "/messages" },
-  { label: "Profile",  icon: "person",         route: "/profile" },
+const ITEMS = [
+  { icon: "home-outline", route: "/student-dashboard" },
+  { icon: "book-outline", route: "/student-lessons" },
+  { icon: "chatbubble-ellipses-outline", route: "/messages" },
+  { icon: "bookmark-outline", route: "/saved-tutors" },
+  { icon: "person-outline", route: "/student-profile" },
 ];
 
 export function StudentBottomNav() {
-  const router   = useRouter();
   const pathname = usePathname();
-  const insets   = useSafeAreaInsets();
 
   return (
-    <View style={[styles.wrap, { paddingBottom: Math.max(insets.bottom, 8) }]}>
-      {TABS.map((tab) => {
-        const active = pathname === tab.route || pathname.startsWith(tab.route + "/");
+    <View style={styles.bottomNav}>
+      {ITEMS.map((it) => {
+        const path = it.route.split("?")[0];
+        const active = pathname === path;
         return (
           <TouchableOpacity
-            key={tab.route}
-            style={styles.tab}
-            onPress={() => router.replace(tab.route)}
+            key={it.route}
+            onPress={() => router.push(it.route)}
+            style={styles.navItem}
             activeOpacity={0.7}
           >
-            <View style={[styles.iconWrap, active && styles.iconWrapActive]}>
-              <Ionicons
-                name={active ? tab.icon : `${tab.icon}-outline`}
-                size={22}
-                color={active ? C.primary : C.textSub}
-              />
-            </View>
-            <Text style={[styles.label, active && styles.labelActive]}>
-              {tab.label}
-            </Text>
+            <Ionicons
+              name={it.icon}
+              size={22}
+              color={active ? "#FF9E6D" : "#28221B"}
+            />
           </TouchableOpacity>
         );
       })}
@@ -45,40 +38,23 @@ export function StudentBottomNav() {
 }
 
 const styles = StyleSheet.create({
-  wrap: {
-    flexDirection:   "row",
-    backgroundColor: C.card,
-    borderTopWidth:  1,
-    borderTopColor:  C.divider,
-    paddingTop:      8,
-    shadowColor:     C.shadow,
-    shadowOffset:    { width: 0, height: -2 },
-    shadowOpacity:   0.06,
-    shadowRadius:    8,
-    elevation:       8,
+  bottomNav: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 60,
+    flexDirection: "row",
+    justifyContent: "space-around",
+    alignItems: "center",
+    backgroundColor: "#FDF0EC",
+    borderTopWidth: 1,
+    borderTopColor: "#EFE6E1",
   },
-  tab: {
-    flex:           1,
-    alignItems:     "center",
-    gap:            2,
-  },
-  iconWrap: {
-    width:           40,
-    height:          40,
-    borderRadius:    20,
-    alignItems:      "center",
-    justifyContent:  "center",
-  },
-  iconWrapActive: {
-    backgroundColor: C.primaryLight,
-  },
-  label: {
-    fontFamily: F.label,
-    fontSize:   10,
-    color:      C.textSub,
-  },
-  labelActive: {
-    color: C.primary,
-    fontFamily: F.label,
+  navItem: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 8,
   },
 });

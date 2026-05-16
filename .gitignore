@@ -9,6 +9,7 @@ dist/
 build/
 *.egg
 .eggs/
+.claude/
 
 # Virtual environments
 .venv/
@@ -16,9 +17,9 @@ venv/
 env/
 
 # ── Environment / secrets ─────────────────────────────────────────────────────
-.env
-.env.*
-!.env.example
+#.env
+#.env.*
+#!.env.example
 
 # ── Expo / React Native ───────────────────────────────────────────────────────
 node_modules/
